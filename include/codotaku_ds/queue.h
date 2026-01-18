@@ -6,10 +6,10 @@
 #include <string.h>
 
 typedef struct {
+    void **data;
     uint32_t mask;
     uint32_t head;
     uint32_t tail;
-    void **data;
 } queue_t;
 
 bool queue_init(queue_t *q, void **data, uint32_t capacity);
