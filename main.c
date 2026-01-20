@@ -1,100 +1,114 @@
 #include <assert.h>
+#include <raylib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <raylib.h>
 
 typedef struct {
-    uint32_t capacity;
-    uint32_t head;
-    uint32_t tail;
-    void *data[];
+	uint32_t mask;
+	uint32_t head;
+	uint32_t tail;
+	void *data[];
 } queue_t;
 
 queue_t *queue_create(uint32_t capacity) {
-    queue_t *q = malloc(sizeof *q + capacity * sizeof *q->data);
-    if (!q)
-        return NULL;
-    q->capacity = capacity;
-    q->head = 0;
-    q->tail = 0;
-    return q;
+	uint64_t mask = capacity - 1;
+	assert((capacity & mask) == 0);
+	queue_t *q = malloc(sizeof *q + capacity * sizeof *q->data);
+	if (!q)
+		return NULL;
+	q->mask = mask;
+	q->head = 0;
+	q->tail = 0;
+	return q;
 }
 
-void queue_destroy(queue_t *q) {
-    free(q);
-}
+void queue_destroy(queue_t *q) { free(q); }
 
-bool queue_empty(queue_t *q) {
-    return q->head == q->tail;
-}
+bool queue_empty(queue_t *q) { return q->head == q->tail; }
 
 bool queue_full(queue_t *q) {
-    assert(q);
-    uint32_t next_tail = (q->tail + 1) % q->capacity;
-    return next_tail == q->head;
+	assert(q);
+	uint32_t next_tail = (q->tail + 1) & q->mask;
+	return next_tail == q->head;
+}
+
+uint32_t queue_capacity(queue_t *q) {
+	assert(q);
+	return q->mask + 1;
+}
+
+uint32_t queue_dist(queue_t *q, uint32_t i) { return (i - q->head) & q->mask; }
+
+uint32_t queue_count(queue_t *q) { return queue_dist(q, q->tail); }
+
+uint32_t queue_active(queue_t *q, uint32_t i) {
+	return queue_dist(q, i) < queue_count(q);
 }
 
 bool queue_enqueue(queue_t *q, void *item) {
-    assert(q);
-    if (queue_full(q))
-        return false;
-    q->data[q->tail] = item;
-    q->tail = (q->tail + 1) % q->capacity;
-    return true;
+	assert(q);
+	if (queue_full(q))
+		return false;
+	q->data[q->tail] = item;
+	q->tail = (q->tail + 1) & q->mask;
+	return true;
 }
 
 void *queue_dequeue(queue_t *q) {
-    assert(q);
-    if (queue_empty(q))
-        return NULL;
-    void *item = q->data[q->head];
-    q->head = (q->head + 1) % q->capacity;
-    return item;
+	assert(q);
+	if (queue_empty(q))
+		return NULL;
+	void *item = q->data[q->head];
+	q->head = (q->head + 1) & q->mask;
+	return item;
 }
 
 void visualize_queue(queue_t *q) {
-    assert(q);
-    InitWindow(800, 450, "Codotaku");
-    SetTargetFPS(60);
-    int next_val = 10;
+	assert(q);
+	InitWindow(800, 450, "Codotaku");
+	SetTargetFPS(60);
+	int next_val = 10;
 
-    while (!WindowShouldClose()) {
-        if (IsKeyReleased(KEY_Q))
-            if (queue_enqueue(q, (void *) (uintptr_t) next_val))
-                next_val += 10;
-        if (IsKeyReleased(KEY_D)) queue_dequeue(q);
+	while (!WindowShouldClose()) {
+		if (IsKeyReleased(KEY_Q))
+			if (queue_enqueue(q, (void *)(uintptr_t)next_val))
+				next_val += 10;
+		if (IsKeyReleased(KEY_D))
+			queue_dequeue(q);
 
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
-        for (int i = 0; i < q->capacity; i++) {
-            int x = 100 + (i * 70);
-            int y = 200;
-            DrawRectangleLines(x, y, 60, 60, BLACK);
-            if (i == q->head) DrawText("HEAD", x, y - 30, 20, RED);
-            if (i == q->tail) DrawText("TAIL", x, y + 70, 20, BLUE);
-            if (q->data[i]) {
-                DrawRectangle(x + 5, y + 5, 50, 50, GRAY);
-                int val = (int) (uintptr_t) q->data[i];
-                DrawText(TextFormat("%d", val), x + 15, y + 20, 20, BLACK);
-            }
+		BeginDrawing();
+		ClearBackground(RAYWHITE);
+		for (int i = 0; i < queue_capacity(q); i++) {
+			int x = 100 + (i * 70);
+			int y = 200;
+			DrawRectangleLines(x, y, 60, 60, BLACK);
+			if (i == q->head)
+				DrawText("HEAD", x, y - 30, 20, RED);
+			if (i == q->tail)
+				DrawText("TAIL", x, y + 70, 20, BLUE);
+			if (queue_active(q, i)) {
+				DrawRectangle(x + 5, y + 5, 50, 50, GRAY);
+				int val = (int)(uintptr_t)q->data[i];
+				DrawText(TextFormat("%d", val), x + 15, y + 20, 20, BLACK);
+			}
 
-            if (queue_full(q)) {
-                DrawText("QUEUE FULL", 100, 150, 20, RED);
-            } else if (queue_empty(q)) {
-                DrawText("QUEUE EMPTY", 100, 150, 20, DARKGRAY);
-            } else {
-                DrawText("QUEUE ACTIVE", 100, 150, 20, GREEN);
-            }
-        }
+			if (queue_full(q)) {
+				DrawText("QUEUE FULL", 100, 150, 20, RED);
+			} else if (queue_empty(q)) {
+				DrawText("QUEUE EMPTY", 100, 150, 20, DARKGRAY);
+			} else {
+				DrawText("QUEUE ACTIVE", 100, 150, 20, GREEN);
+			}
+		}
 
-        EndDrawing();
-    }
+		EndDrawing();
+	}
 }
 
 int main(void) {
-    queue_t *q = queue_create(8);
-    visualize_queue(q);
-    queue_destroy(q);
-    return 0;
+	queue_t *q = queue_create(8);
+	visualize_queue(q);
+	queue_destroy(q);
+	return 0;
 }
