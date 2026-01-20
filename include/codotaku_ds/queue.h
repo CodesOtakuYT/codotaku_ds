@@ -41,14 +41,16 @@ void *queue_peek(const queue_t *q);
 uint32_t queue_to_array(const queue_t *restrict q, void **restrict dest,
                         uint32_t dest_size);
 
+// #define CODOTAKU_DS_IMPL
 #ifdef CODOTAKU_DS_IMPL
 
 bool queue_init(queue_t *q, void **data, uint32_t capacity) {
-    assert(q != NULL);
-    assert(data != NULL);
+    assert(q);
+    assert(data);
+    assert(capacity > 1);
+    assert((capacity & (capacity - 1)) == 0 &&
+           "capacity must be a power of two");
 
-    if (capacity <= 1 || (capacity & (capacity - 1)) != 0)
-        return false;
     q->mask = capacity - 1;
     q->head = 0;
     q->tail = 0;
@@ -57,8 +59,9 @@ bool queue_init(queue_t *q, void **data, uint32_t capacity) {
 }
 
 queue_t *queue_create(uint32_t capacity) {
-    if (capacity <= 1 || (capacity & (capacity - 1)) != 0)
-        return NULL;
+    assert(capacity > 1);
+    assert((capacity & (capacity - 1)) == 0 &&
+           "capacity must be a power of two");
 
     size_t header_size = sizeof(queue_t);
     size_t data_size = capacity * sizeof(void *);
