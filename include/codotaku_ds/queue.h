@@ -41,7 +41,7 @@ void *queue_peek(const queue_t *q);
 uint32_t queue_to_array(const queue_t *restrict q, void **restrict dest,
                         uint32_t dest_size);
 
-// #define CODOTAKU_DS_IMPL
+#define CODOTAKU_DS_IMPL
 #ifdef CODOTAKU_DS_IMPL
 
 bool queue_init(queue_t *q, void **data, uint32_t capacity) {
@@ -81,7 +81,7 @@ void queue_destroy(queue_t *q) { free(q); }
 
 void queue_clear(queue_t *q) {
     assert(q);
-    q->head = q->tail;
+    q->head = q->tail = 0;
 }
 
 bool queue_empty(const queue_t *q) {
